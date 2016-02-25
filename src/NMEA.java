@@ -7,7 +7,7 @@ import java.io.InputStreamReader;
 
 /*
 //tb/160224
-This class reads raw NMEA files dumped from a GNSS/GPS Receiver, parses the sentences and prints CSV style output.
+This class reads raw NMEA files dumped from a GNSS/GPS receiver, parses the sentences and prints CSV style output.
 THIS IS NOT A COMPLETE PARSER. The program tries to parse some common sentences with talker IDs GP, GN.
 On linux: see gpsd, gpsdecode
 
@@ -543,8 +543,10 @@ Example: $GPZDA,160012.71,11,03,2004,-1,00*7D
 //=============================================================================		
 		public String toString()
 		{
-			return String.format("%d-%s-%s;%f;%f;%f;%d;%f;%f;%f;%f;%f;%f;%f;%s;%d;%d;%f;%f;%f"
-				,year,String.format("%02d",month),String.format("%02d",day),time,lon,lat,quality,direction,altitude,velocity,lat_err,lon_err,alt_err,dgps_age,mode,sat_in_use,fix_type,PDOP,HDOP,VDOP);
+			return String.format("%s%s%s;%f;%f;%f;%d;%f;%f;%f;%f;%f;%f;%f;%s;%d;%d;%f;%f;%f"
+				,String.format("%04d",year),String.format("%02d",month),String.format("%02d",day)
+				,time,lon,lat,quality,direction,altitude,velocity,lat_err,lon_err,alt_err
+				,dgps_age,mode,sat_in_use,fix_type,PDOP,HDOP,VDOP);
 		}
 	}//end class GPSPosition
 
