@@ -1,5 +1,3 @@
-//package es.agroguia.model;
-
 import java.util.HashMap;
 import java.util.Map;
 
