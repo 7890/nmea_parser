@@ -3,6 +3,7 @@ import java.util.Map;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.InputStreamReader;
 
 /*
 //tb/160224
@@ -71,7 +72,7 @@ public class NMEA
 	{
 		if(args.length<1)
 		{
-			System.err.println("Need file argument");
+			System.err.println("Need file argument (- to read from stdin)");
 			System.err.println("Syntax: <file to parse> (debug)");
 			System.exit(1);
 		}
@@ -81,16 +82,34 @@ public class NMEA
 			debug=true;
 		}
 
+		boolean read_from_stdin=false;
+		if(args[0].equals("-"))
+		{
+			read_from_stdin=true;
+		}
+
 		NMEA n=new NMEA();
 		GPSPosition pos;
-
+		BufferedReader br=null;
 		try
 		{
-			BufferedReader br = new BufferedReader(new FileReader(args[0]));
+			if(read_from_stdin)
+			{
+				br=new BufferedReader(new InputStreamReader(System.in));
+			}
+			else
+			{
+				br=new BufferedReader(new FileReader(args[0]));
+			}
+
 			System.out.println(csv_header);
 			String line;
 			while ((line = br.readLine()) != null)
 			{
+				if(debug)
+				{
+					System.err.println("input line: '"+line+"'");
+				}
 				pos=n.parse(line);
 				if(pos!=null && pos.last_sentence_type.equals("RMC")) ///
 				{
