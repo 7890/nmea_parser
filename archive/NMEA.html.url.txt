@@ -1,0 +1,2 @@
+http://www.catb.org/gpsd/NMEA.html
+Thu Feb 25 01:29:01 CET 2016
