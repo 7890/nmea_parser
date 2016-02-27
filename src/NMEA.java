@@ -31,11 +31,14 @@ public class NMEA
 	Map<String, SentenceParser> sentenceParsers = new HashMap<String, SentenceParser>();
 
 	//1 knot = 0.5144444444 meter per second
-	static double knot_to_meters_coeff=1.0f/0.5144444444;
+	static final double knot_to_meters_coeff=1.0f/0.5144444444;
 
-	static boolean debug=false;
+	boolean debug=false;
+	boolean read_from_stdin=false;
 
-	static String csv_header="date;time;lon;lat;quality;dir;alt;vel;lat_err;lon_err;alt_err;dgps_age;mode;sat;fix;PDOP;HDOP;VDOP;";
+	String csv_header="date;time;lon;lat;quality;dir;alt;vel;lat_err;lon_err;alt_err;dgps_age;mode;sat;fix;PDOP;HDOP;VDOP;";
+
+	BufferedReader buffered_reader=null;
 
 //=============================================================================
 	public NMEA()
@@ -68,49 +71,56 @@ public class NMEA
 	}//end constructor
 
 //=============================================================================
-	public static void main(String[] args)
+	void setDebug(boolean debug)
 	{
-		if(args.length<1)
-		{
-			System.err.println("Need file argument (- to read from stdin)");
-			System.err.println("Syntax: <file to parse> (debug)");
-			System.exit(1);
-		}
+		this.debug=debug;
+	}
 
-		if(args.length>1)
-		{
-			debug=true;
-		}
-
-		boolean read_from_stdin=false;
-		if(args[0].equals("-"))
-		{
-			read_from_stdin=true;
-		}
-
-		NMEA n=new NMEA();
-		GPSPosition pos;
-		BufferedReader br=null;
+//=============================================================================
+	void setReadFromStdIn()
+	{
+		this.read_from_stdin=true;
 		try
 		{
-			if(read_from_stdin)
-			{
-				br=new BufferedReader(new InputStreamReader(System.in));
-			}
-			else
-			{
-				br=new BufferedReader(new FileReader(args[0]));
-			}
+			buffered_reader=new BufferedReader(new InputStreamReader(System.in));
+		}
+		catch(Exception e)
+		{
+			System.err.println(e);
+			System.exit(1);
+		}
+	}
 
+//=============================================================================
+	void setReadFromFile(String file_uri)
+	{
+		this.read_from_stdin=false;
+		try
+		{
+			buffered_reader=new BufferedReader(new FileReader(file_uri));
+		}
+		catch(Exception e)
+		{
+			System.err.println(e);
+			System.exit(1);
+		}
+	}
+
+//=============================================================================
+	void startProcessingInput()
+	{
+		GPSPosition pos;
+		try
+		{
 			System.out.println(csv_header);
 			String line;
-			while ((line = br.readLine()) != null)
+			while ((line = buffered_reader.readLine()) != null)
 			{
 				if(debug)
 				{
 					System.err.println("input line: '"+line+"'");
 				}
-				pos=n.parse(line);
+				pos=parseLine(line);
 				if(pos!=null && pos.last_sentence_type.equals("RMC")) ///
 				{
 					System.out.println(pos);
@@ -122,8 +132,36 @@ public class NMEA
 			System.err.println("Could not parse file");
 			System.exit(1);
 		}
-	}//end main
+	}
 
+//=============================================================================
+	public static void main(String[] args)
+	{
+		if(args.length<1)
+		{
+			System.err.println("Need file argument (- to read from stdin)");
+			System.err.println("Syntax: <file to parse> (debug)");
+			System.exit(1);
+		}
+
+		NMEA n=new NMEA();
+
+		if(args.length>1)
+		{
+			n.setDebug(true);
+		}
+
+		if(args[0].equals("-"))
+		{
+			n.setReadFromStdIn();
+		}
+		else
+		{
+			n.setReadFromFile(args[0]);
+		}
+
+		n.startProcessingInput();
+	}//end main
 
 //=============================================================================
 	void print_tokens(String[] tokens)
@@ -507,51 +545,8 @@ Example: $GPZDA,160012.71,11,03,2004,-1,00*7D
 		}
 	}
 
-//=============================================================================
-	public class GPSPosition
-	{
-		public int year = 0;
-		public int month = 0;
-		public int day = 0;
-		public float time = -1.0f;
-		public float lon = 0.0f;
-		public float lat = 0.0f;
-		public int quality = 0;
-		public float direction = -1.0f;
-		public float altitude = -1.0f;
-		public float velocity = -1.0f;
-		public float lat_err = -1.0f;
-		public float lon_err = -1.0f;
-		public float alt_err = -1.0f;
-		public float dgps_age = -1.0f;
-		public String mode = "N";
-		public int sat_in_use = 0;
-		public int fix_type = 0;
-		public float PDOP = -1;
-		public float HDOP = -1;
-		public float VDOP = -1;
-		public int local_tz = 0;
-		public String last_sentence_type ="";
-		public boolean fixed = false;
-
 //=============================================================================	
-		public void updatefix()
-		{
-			fixed = quality > 0;
-		}
-
-//=============================================================================		
-		public String toString()
-		{
-			return String.format("%s%s%s;%f;%f;%f;%d;%f;%f;%f;%f;%f;%f;%f;%s;%d;%d;%f;%f;%f"
-				,String.format("%04d",year),String.format("%02d",month),String.format("%02d",day)
-				,time,lon,lat,quality,direction,altitude,velocity,lat_err,lon_err,alt_err
-				,dgps_age,mode,sat_in_use,fix_type,PDOP,HDOP,VDOP);
-		}
-	}//end class GPSPosition
-
-//=============================================================================	
-	public GPSPosition parse(String line)
+	public GPSPosition parseLine(String line)
 	{
 		if(line.startsWith("$"))
 		{
