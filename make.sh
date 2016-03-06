@@ -6,11 +6,14 @@ DIR=`dirname "$FULLPATH"`
 src="$DIR"/src
 build="$DIR"/_build
 archive="$DIR"/archive
+lib="$DIR/lib"
 
 jsource=1.6
 jtarget=1.6
 
 JAVAC="javac -source $jsource -target $jtarget -nowarn"
+
+javaosc_jar="$lib"/JavaOSC_1456870047.jar
 
 #========================================================================
 checkAvail()
@@ -28,7 +31,7 @@ checkAvail()
 compile()
 {
 	echo "building NMEA parser..."
-	$JAVAC -source $jsource -target $jtarget -classpath "$build" -sourcepath "$src" -d "$build" "$src"/*.java
+	$JAVAC -source $jsource -target $jtarget -classpath "$build":"$javaosc_jar" -sourcepath "$src" -d "$build" "$src"/*.java
 }
 
 for tool in java javac jar javadoc; \
