@@ -12,7 +12,7 @@ class Test
 
 		if(pos!=null)
 		{
-			System.out.println(n.csv_header);
+			System.out.println(pos.getCSVHeader());
 			System.out.println(pos);
 		}
 	}

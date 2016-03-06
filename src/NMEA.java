@@ -36,8 +36,6 @@ public class NMEA
 	boolean debug=false;
 	boolean read_from_stdin=false;
 
-	String csv_header="date;time;lon;lat;quality;dir;alt;vel;lat_err;lon_err;alt_err;dgps_age;mode;sat;fix;PDOP;HDOP;VDOP;";
-
 	BufferedReader buffered_reader=null;
 
 //=============================================================================
@@ -112,7 +110,7 @@ public class NMEA
 		GPSPosition pos;
 		try
 		{
-			System.out.println(csv_header);
+			System.out.println(position.getCSVHeader());
 			String line;
 			while ((line = buffered_reader.readLine()) != null)
 			{
@@ -129,6 +127,7 @@ public class NMEA
 		}
 		catch(Exception e)
 		{
+			e.printStackTrace();
 			System.err.println("Could not parse file");
 			System.exit(1);
 		}
@@ -304,6 +303,12 @@ A status of V means the GPS has a valid fix that is below an internal quality th
 			try{position.lon = Longitude2Decimal(tokens[5], tokens[6]);}catch(Exception e3){print_parse_error("lon");}
 			try{position.velocity = (float)(Float.parseFloat(tokens[7]) * knot_to_meters_coeff);}catch(Exception e4){print_parse_error("velocity");}
 			try{position.direction = Float.parseFloat(tokens[8]);}catch(Exception e5){print_parse_error("direction");}
+			try{position.date = DTime.yyyymmdd_from_ddmmyy(tokens[9]);}catch(Exception e6){print_parse_error("date");}
+			try{position.millis_utc
+				= DTime.millisFrom_yyyymmdd(position.date)
+				+ DTime.millisFrom_HHMMSSpSSS(""+position.time);
+			}catch(Exception e7){print_parse_error("millis_utc");}
+			try{position.millis_utc_sys=DTime.nowMillis();}catch(Exception e8){print_parse_error("millis_utc_sys");}
 		}
 	}
 
@@ -538,9 +543,6 @@ Example: $GPZDA,160012.71,11,03,2004,-1,00*7D
 		{
 			print_tokens(tokens);
 			position.last_sentence_type="ZDA";
-			try{position.day = Integer.parseInt(tokens[2]);}catch(Exception e){print_parse_error("day");}
-			try{position.month = Integer.parseInt(tokens[3]);}catch(Exception e){print_parse_error("month");}
-			try{position.year = Integer.parseInt(tokens[4]);}catch(Exception e){print_parse_error("year");}
 			try{position.local_tz = Integer.parseInt(tokens[5]);}catch(Exception e){print_parse_error("local_tz");}
 		}
 	}
