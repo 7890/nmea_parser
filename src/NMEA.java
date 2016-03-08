@@ -65,6 +65,8 @@ public class NMEA
 		sentenceParsers.put("GPZDA", new GPZDA());
 		sentenceParsers.put("GNZDA", new GPZDA());
 
+		DTime.setTimeZoneUTC();
+
 		//GSV (satellites in view)
 	}//end constructor
 

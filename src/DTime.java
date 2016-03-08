@@ -39,7 +39,7 @@ class DTime
 
 	public DTime(){}
 
-	public static void setTimeZone()
+	public static void setTimeZoneUTC()
 	{
 		date_time_format.setTimeZone(TimeZone.getTimeZone(timezone_id));
 		date_format.setTimeZone(TimeZone.getTimeZone(timezone_id));
@@ -77,7 +77,7 @@ class DTime
 
 	public static void main(String[] args) throws Exception
 	{
-		setTimeZone();
+		setTimeZoneUTC(); ///important to call
 		System.err.println("1 "+now());
 		System.err.println("2 "+nowMillis());
 		System.err.println("3 "+dateTimeFromMillis(nowMillis()));
