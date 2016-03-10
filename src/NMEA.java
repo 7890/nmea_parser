@@ -4,6 +4,7 @@ import java.util.Map;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 
 /*
 //tb/160224
@@ -35,8 +36,10 @@ public class NMEA
 
 	boolean debug=false;
 	boolean read_from_stdin=false;
+	boolean write_to_stdin=true;
 
 	BufferedReader buffered_reader=null;
+	PrintWriter print_writer=null;
 
 //=============================================================================
 	public NMEA()
@@ -107,12 +110,40 @@ public class NMEA
 	}
 
 //=============================================================================
+	void setWriteToStdIn()
+	{
+		this.write_to_stdin=true;
+	}
+
+//=============================================================================
+	void setWriteToFile(String file_uri)
+	{
+		this.write_to_stdin=false;
+		try
+		{
+			print_writer=new PrintWriter(file_uri, "UTF-8");
+		}
+		catch(Exception e)
+		{
+			System.err.println(e);
+			System.exit(1);
+		}
+	}
+
+//=============================================================================
 	void startProcessingInput()
 	{
 		GPSPosition pos;
 		try
 		{
-			System.out.println(position.getCSVHeader());
+			if(write_to_stdin)
+			{
+				System.out.println(position.getCSVHeader());
+			}
+			else if(print_writer!=null)
+			{
+				print_writer.println(position.getCSVHeader());
+			}
 			String line;
 			while ((line = buffered_reader.readLine()) != null)
 			{
@@ -123,8 +154,19 @@ public class NMEA
 				pos=parseLine(line);
 				if(pos!=null && pos.last_sentence_type.equals("RMC")) ///
 				{
-					System.out.println(pos);
+					if(write_to_stdin)
+					{
+						System.out.println(pos);
+					}
+					else if(print_writer!=null)
+					{
+						print_writer.println(pos);
+					}
 				}
+			}
+			if(print_writer!=null)
+			{
+				print_writer.flush();
 			}
 		}
 		catch(Exception e)
@@ -141,16 +183,11 @@ public class NMEA
 		if(args.length<1)
 		{
 			System.err.println("Need file argument (- to read from stdin)");
-			System.err.println("Syntax: <file to parse> (debug)");
+			System.err.println("Syntax: <file to parse> (outfile)");
 			System.exit(1);
 		}
 
 		NMEA n=new NMEA();
-
-		if(args.length>1)
-		{
-			n.setDebug(true);
-		}
 
 		if(args[0].equals("-"))
 		{
@@ -161,6 +198,16 @@ public class NMEA
 			n.setReadFromFile(args[0]);
 		}
 
+		if(args.length>1)
+		{
+			 n.setWriteToFile(args[1]);
+			///was:
+			//n.setDebug(true);
+		}
+		else
+		{
+			n.setWriteToStdIn();
+		}
 		n.startProcessingInput();
 	}//end main
 
@@ -300,6 +347,7 @@ A status of V means the GPS has a valid fix that is below an internal quality th
 		{
 			print_tokens(tokens);
 			position.last_sentence_type="RMC";
+			try{position.millis_utc_sys=DTime.nowMillis();}catch(Exception e8){print_parse_error("millis_utc_sys");}
 			try{position.time = Float.parseFloat(tokens[1]);}catch(Exception e1){print_parse_error("time");}
 			try{position.lat = Latitude2Decimal(tokens[3], tokens[4]);}catch(Exception e2){print_parse_error("lat");}
 			try{position.lon = Longitude2Decimal(tokens[5], tokens[6]);}catch(Exception e3){print_parse_error("lon");}
@@ -310,7 +358,7 @@ A status of V means the GPS has a valid fix that is below an internal quality th
 				= DTime.millisFrom_yyyymmdd(position.date)
 				+ DTime.millisFrom_HHMMSSpSSS(""+DTime.formatTimeLeadingZeros(position.time));
 			}catch(Exception e7){print_parse_error("millis_utc");}
-			try{position.millis_utc_sys=DTime.nowMillis();}catch(Exception e8){print_parse_error("millis_utc_sys");}
+
 		}
 	}
 
