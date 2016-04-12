@@ -9,7 +9,7 @@ import java.io.PrintWriter;
 /*
 //tb/160224
 This class reads raw NMEA files dumped from a GNSS/GPS receiver, parses the sentences and prints CSV style output.
-THIS IS NOT A COMPLETE PARSER. The program tries to parse some common sentences with talker IDs GP, GN.
+THIS IS NOT A COMPLETE PARSER. The program tries to parse some common sentences with talker IDs GP, GN, GL, GA and GB.
 On linux: see gpsd, gpsdecode
 
 Code is based on this gist: https://gist.github.com/javisantana/1326141
@@ -41,37 +41,133 @@ public class NMEA
 	BufferedReader buffered_reader=null;
 	PrintWriter print_writer=null;
 
+	//sentences with talker ID GP (Global Positioning System receiver)
+	static String GP_sentences[]={"GPGGA","GPGLL","GPRMC","GPVTG","GPGST","GPGNS","GPGSA","GPZDA"};
+
+	//sentences with talker ID GN (Mixed GPS and GLONASS data, according to IEIC 61162-1)
+	static String GN_sentences[]={"GNGGA","GNGLL","GNRMC","GNVTG","GNGST","GNGNS","GNGSA","GNZDA"};
+
+	//sentences with talker ID GL (GLONASS, according to IEIC 61162-1)
+	static String GL_sentences[]={"GLGGA","GLGLL","GLRMC","GLVTG","GLGST","GLGNS","GLGSA","GLZDA"};
+
+	//sentences with talker ID GA (Galileo Positioning System)
+	static String GA_sentences[]={"GAGGA","GAGLL","GARMC","GAVTG","GAGST","GAGNS","GAGSA","GAZDA"};
+
+	//sentences with talker ID GB (BeiDou (China))
+	//*QZ is an alternative talker ID for BeiDou not supported here (only sentences starting with 'G' for simplicity)
+	static String GB_sentences[]={"GBGGA","GBGLL","GBRMC","GBVTG","GBGST","GBGNS","GBGSA","GBZDA"};
+
 //=============================================================================
 	public NMEA()
 	{
-		sentenceParsers.put("GPGGA", new GPGGA());
-		sentenceParsers.put("GNGGA", new GPGGA());
-
-		sentenceParsers.put("GPGLL", new GPGLL());
-		sentenceParsers.put("GNGLL", new GPGLL());
-
-		sentenceParsers.put("GPRMC", new GPRMC());
-		sentenceParsers.put("GNRMC", new GPRMC());
-
-		sentenceParsers.put("GPVTG", new GPVTG());
-		sentenceParsers.put("GNVTG", new GPVTG());
-
-		sentenceParsers.put("GPGST", new GPGST());
-		sentenceParsers.put("GNGST", new GPGST());
-
-		sentenceParsers.put("GPGNS", new GPGNS());
-		sentenceParsers.put("GNGNS", new GPGNS());
-
-		sentenceParsers.put("GPGSA", new GPGSA());
-		sentenceParsers.put("GNGSA", new GPGSA());
-
-		sentenceParsers.put("GPZDA", new GPZDA());
-		sentenceParsers.put("GNZDA", new GPZDA());
+		//you might want to change this.
+		//by default all known sentences will be parsed
+		addAllGPSentences();
+		addAllGNSentences();
+		addAllGLSentences();
+		addAllGASentences();
+		addAllGBSentences();
 
 		DTime.setTimeZoneUTC();
-
 		//GSV (satellites in view)
 	}//end constructor
+
+//=============================================================================
+	void removeAllSentences()
+	{
+		sentenceParsers.clear();
+	}
+
+//=============================================================================
+	boolean addAllGPSentences()
+	{
+		return addSentences(GP_sentences);
+	}
+//=============================================================================
+	boolean addAllGNSentences()
+	{
+		return addSentences(GN_sentences);
+	}
+//=============================================================================
+	boolean addAllGLSentences()
+	{
+		return addSentences(GL_sentences);
+	}
+//=============================================================================
+	boolean addAllGASentences()
+	{
+		return addSentences(GA_sentences);
+	}
+//=============================================================================
+	boolean addAllGBSentences()
+	{
+		return addSentences(GB_sentences);
+	}
+
+//=============================================================================
+	boolean addSentences(String[] sentences)
+	{
+		boolean success=true;
+		for(int i=0;i<sentences.length;i++)
+		{
+			success=success && addSentence(sentences[i]);
+		}
+		return success;
+	}
+
+//=============================================================================
+	boolean addSentence(String sentence)
+	{
+		if(sentence.length()!=5 || !sentence.startsWith("G"))
+		{
+			if(debug)
+			{
+				System.err.println("sentence has invalid length or doesn't start with 'G': "+sentence);
+			}
+			return false;
+		}
+		String sentence_type=sentence.substring(2,5);
+
+		if(sentence_type.equals("GGA"))
+		{
+			sentenceParsers.put(sentence, new GxGGA());
+		}
+		else if(sentence_type.equals("GLL"))
+		{
+			sentenceParsers.put(sentence, new GxGLL());
+		}
+		else if(sentence_type.equals("RMC"))
+		{
+			sentenceParsers.put(sentence, new GxRMC());
+		}
+		else if(sentence_type.equals("VTG"))
+		{
+			sentenceParsers.put(sentence, new GxVTG());
+		}
+		else if(sentence_type.equals("GST"))
+		{
+			sentenceParsers.put(sentence, new GxGST());
+		}
+		else if(sentence_type.equals("GNS"))
+		{
+			sentenceParsers.put(sentence, new GxGNS());
+		}
+		else if(sentence_type.equals("GSA"))
+		{
+			sentenceParsers.put(sentence, new GxGSA());
+		}
+		else if(sentence_type.equals("ZDA"))
+		{
+			sentenceParsers.put(sentence, new GxZDA());
+		}
+
+		if(debug)
+		{
+			System.err.println("sentence added: "+sentence+" (Gx"+sentence_type+")");
+		}
+
+		return true;
+	}//end addSentence()
 
 //=============================================================================
 	void setDebug(boolean debug)
@@ -303,7 +399,7 @@ Field Number:
 14   Differential reference station ID, 0000-1023
 15   Checksum
 */
-	class GPGGA implements SentenceParser
+	class GxGGA implements SentenceParser
 	{
 		public void parse(String [] tokens, GPSPosition position)
 		{
@@ -313,6 +409,8 @@ Field Number:
 			try{position.lat = Latitude2Decimal(tokens[2], tokens[3]);}catch(Exception e1){print_parse_error("lat");}
 			try{position.lon = Longitude2Decimal(tokens[4], tokens[5]);}catch(Exception e1){print_parse_error("lon");}
 			try{position.quality = Integer.parseInt(tokens[6]);}catch(Exception e1){print_parse_error("quality");}
+			try{position.sat_in_use = Integer.parseInt(tokens[7]);}catch(Exception e1){print_parse_error("sat_in_use");}
+			try{position.HDOP = Float.parseFloat(tokens[8]);}catch(Exception e){print_parse_error("HDOP");}
 			try{position.altitude = Float.parseFloat(tokens[9]);}catch(Exception e1){print_parse_error("altitude");}
 			try{position.dgps_age = Float.parseFloat(tokens[13]);}catch(Exception e1){print_parse_error("dgps_age");}
 		}
@@ -341,7 +439,7 @@ Field Number:
 
 A status of V means the GPS has a valid fix that is below an internal quality threshold, e.g. because the dilution of precision is too high or an elevation mask test failed.
 */
-	class GPRMC implements SentenceParser
+	class GxRMC implements SentenceParser
 	{
 		public void parse(String [] tokens, GPSPosition position)
 		{
@@ -382,7 +480,7 @@ Field Number:
 7    FAA mode indicator (NMEA 2.3 and later)
 8    Checksum
 */
-	class GPGLL implements SentenceParser
+	class GxGLL implements SentenceParser
 	{
 		public void parse(String [] tokens, GPSPosition position)
 		{
@@ -413,7 +511,7 @@ Field Number:
 8    Standard deviation (meters) of altitude error
 9    Checksum
 */
-	class GPGST implements SentenceParser
+	class GxGST implements SentenceParser
 	{
 		public void parse(String [] tokens, GPSPosition position)
 		{
@@ -449,7 +547,7 @@ Field Number:
 
 //,"$GNVTG,,T,,M,0.009,N,0.016,K,D*36"
 	
-	class GPVTG implements SentenceParser
+	class GxVTG implements SentenceParser
 	{
 		public void parse(String [] tokens, GPSPosition position)
 		{
@@ -495,7 +593,7 @@ The Mode indicator is two or more characters, with the first and second defined 
     S = Simulator Mode
 */
 
-	class GPGNS implements SentenceParser
+	class GxGNS implements SentenceParser
 	{
 		public void parse(String [] tokens, GPSPosition position)
 		{
@@ -553,7 +651,7 @@ DOP Value 	Rating 		Description
 >20 		Poor 		At this level, measurements are inaccurate by as much as 300 meters with a 6-meter accurate device (50 DOP × 6 meters) and should be discarded.
 */
 
-	class GPGSA implements SentenceParser
+	class GxGSA implements SentenceParser
 	{
 		public void parse(String [] tokens, GPSPosition position)
 		{
@@ -587,7 +685,7 @@ Field Number:
 
 Example: $GPZDA,160012.71,11,03,2004,-1,00*7D
 */
-	class GPZDA implements SentenceParser
+	class GxZDA implements SentenceParser
 	{
 		public void parse(String [] tokens, GPSPosition position)
 		{
@@ -610,7 +708,7 @@ Example: $GPZDA,160012.71,11,03,2004,-1,00*7D
 			{
 				sentenceParsers.get(type).parse(tokens, position);
 				position.updatefix();
-				return position;
+				return new GPSPosition(position);
 			}
 			else if(debug)
 			{
